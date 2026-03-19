@@ -81,35 +81,61 @@ if __name__ == "__main__":
 
             # 判断是否签到
             is_sign_ele = page.ele('xpath://*[@id="signstar_wrapper"]/a/span[1]')
+            is_sign_ele_new = page.ele('xpath://div[contains(@class, "center") and contains(text(), "连签")]')
             is_sign = is_sign_ele.text if is_sign_ele else ""
-            if is_sign.startswith("连续"):
+            is_sign_new = is_sign_ele_new.text if is_sign_ele_new else ""
+            if is_sign.startswith("连续") or "连签" in is_sign_new:
                 level, exp = get_level_exp(page)
                 msg = f"{name}吧：已签到过！等级：{level}，经验：{exp}"
                 print(msg)
                 notice += msg + '\n\n'
                 print("-------------------------------------------------")
             else:
-                page.wait.eles_loaded('xpath://a[@class="j_signbtn sign_btn_bright j_cansign"]',timeout=30)
-                sign_ele = page.ele('xpath://a[@class="j_signbtn sign_btn_bright j_cansign"]')
-                if sign_ele:
-                    sign_ele.click()
-                    time.sleep(1)  # 等待签到动作完成
-                    sign_ele.click()
-                    time.sleep(1)  # 等待签到动作完成
-                    page.refresh()
+                sign_btn_ele = page.ele('xpath://div[@id="signstar_wrapper"]//a[contains(@class, "j_sign_tip") and @title="签到"]')
+                if sign_btn_ele is not None:
+                    page.wait.eles_loaded('xpath://a[@class="j_signbtn sign_btn_bright j_cansign"]',timeout=30)
+                    sign_ele = page.ele('xpath://a[@class="j_signbtn sign_btn_bright j_cansign"]')
+                    if sign_ele:
+                        sign_ele.click()
+                        time.sleep(1)  # 等待签到动作完成
+                        sign_ele.click()
+                        time.sleep(1)  # 等待签到动作完成
+                        page.refresh()
 
-                    page._wait_loaded(15)
+                        page._wait_loaded(15)
 
-                    level, exp = get_level_exp(page)
-                    msg = f"{name}吧：成功！等级：{level}，经验：{exp}"
-                    print(msg)
-                    notice += msg + '\n\n'
-                    print("-------------------------------------------------")
+                        level, exp = get_level_exp(page)
+                        msg = f"{name}吧：成功！等级：{level}，经验：{exp}"
+                        print(msg)
+                        notice += msg + '\n\n'
+                        print("-------------------------------------------------")
+                    else:
+                        msg = f"错误！{name}吧：找不到签到按钮，可能页面结构变了"
+                        print(msg)
+                        notice += msg + '\n\n'
+                        print("-------------------------------------------------")
                 else:
-                    msg = f"错误！{name}吧：找不到签到按钮，可能页面结构变了"
-                    print(msg)
-                    notice += msg + '\n\n'
-                    print("-------------------------------------------------")
+                    sign_btn_ele_new = page.ele('xpath://div[contains(@class, "button-wrapper") and @aria-describedby]/div[contains(@class, "center") and text()="签到"]')
+                    if sign_btn_ele_new is not None:
+                        page.wait.eles_loaded('xpath://a[@class="button-wrapper button-wrapper--gray button-wrapper-loading-center operate-btn follow-sign popover__reference"]',timeout=30)
+                        sign_ele_new = page.ele('xpath://a[@class="button-wrapper button-wrapper--gray button-wrapper-loading-center operate-btn follow-sign popover__reference"]')
+                        if sign_ele_new:
+                            sign_ele_new.click()
+                            time.sleep(1)  # 等待签到动作完成
+                            sign_ele_new.click()
+                            time.sleep(1)  # 等待签到动作完成
+                            page.refresh()
+                            page._wait_loaded(15)
+                            level, exp = get_level_exp(page)
+                            msg = f"{name}吧：成功！等级：{level}，经验：{exp}"
+                            print(msg)
+                            notice += msg + '\n\n'
+                            print("-------------------------------------------------")
+                        else:
+                            msg = f"错误！{name}吧：找不到签到按钮，可能页面结构变了"
+                            print(msg)
+                            notice += msg + '\n\n'
+                            print("-------------------------------------------------")
 
             count += 1
             page.back()
