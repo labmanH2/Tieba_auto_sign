@@ -16,15 +16,41 @@ def read_cookie():
 def get_level_exp(page):
     """获取等级和经验，如果找不到返回'未知'"""
     try:
-        level_ele = page.ele('xpath://*[@id="pagelet_aside/pagelet/my_tieba"]/div/div[1]/div[3]/div[1]/a/div[2]').text
-        level = level_ele if level_ele else "未知"
+        # 定位两个等级元素（不会同时存在）
+        level_ele = page.ele('xpath://*[@id="pagelet_aside/pagelet/my_tieba"]//div/div[1]/div[3]/div[1]/a/div')
+        level_ele_new = page.ele('xpath://*[contains(@class, "level-icon")]//use[contains(@xlink:href,"level")]')
+        
+        # 核心：取存在的那个元素，都不存在则为None
+        exist_level_ele = level_ele or level_ele_new
+    
+        # 提取等级文本（适配新旧版格式）
+        if exist_level_ele == level_ele:
+            # 旧版：直接取文本
+            level = level_ele.text.strip() if level_ele.text else "未知"
+        elif exist_level_ele == level_ele_new:
+            # 新版：提取属性中的等级数字
+            href_val = level_ele_new.attr("xlink:href")
+            level = href_val.replace("#level", "") if href_val else "未知"
+        else:
+            # 都不存在
+            level = "未知"
     except:
+        # 任何错误都兜底为未知
         level = "未知"
+
     try:
-        exp_ele = page.ele('xpath://*[@id="pagelet_aside/pagelet/my_tieba"]/div/div[1]/div[3]/div[2]/a/div[2]/span[1]').text
-        exp = exp_ele if exp_ele else "未知"
+        exp_old_ele = page.ele('xpath://*[@id="pagelet_aside/pagelet/my_tieba"]/div/div[1]/div[3]/div[2]/a/div[2]/span[1]')
+        exp_new_ele = page.ele('xpath://div[contains(@class, "bar-info")]/div[contains(@class, "progress-text")]')
+    # 分别取文本
+        exp_text_old = exp_old_ele.text if exp_old_ele else ""
+        exp_text_new = exp_new_ele.text if exp_new_ele else ""
+        # 二选一
+        exp = exp_text_old or exp_text_new
+        if not exp:
+            exp = "未知"
     except:
         exp = "未知"
+
     return level, exp
 
 if __name__ == "__main__":
