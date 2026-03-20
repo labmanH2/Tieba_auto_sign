@@ -18,7 +18,7 @@ def get_level_exp(page):
     try:
         # 定位两个等级元素（不会同时存在）
         level_ele = page.ele('xpath://*[@id="pagelet_aside/pagelet/my_tieba"]//div/div[1]/div[3]/div[1]/a/div')
-        level_ele_new = page.ele('xpath://*[contains(@class, "level-icon")]//use[contains(@xlink:href,"level")]')
+        level_ele_new = page.ele('xpath://div[contains(@class, "forum-suffix")]/svg[contains(@class, "level-icon")]/use')
         
         # 核心：取存在的那个元素，都不存在则为None
         exist_level_ele = level_ele or level_ele_new
@@ -43,7 +43,7 @@ def get_level_exp(page):
         exp_new_ele = page.ele('xpath://div[contains(@class, "bar-info")]/div[contains(@class, "progress-text")]')
     # 分别取文本
         exp_text_old = exp_old_ele.text if exp_old_ele else ""
-        exp_text_new = exp_new_ele.text if exp_new_ele else ""
+        exp_text_new = exp_new_ele.text.replace("经验 ", "") if exp_new_ele else ""
         # 二选一
         exp = exp_text_old or exp_text_new
         if not exp:
@@ -141,22 +141,22 @@ if __name__ == "__main__":
                         notice += msg + '\n\n'
                         print("-------------------------------------------------")
                 else:
-                    sign_btn_ele_new = page.ele('xpath://div[contains(@class, "button-wrapper") and @aria-describedby]/div[contains(@class, "center") and text()="签到"]')
-                    if sign_btn_ele_new is not None:
-                        page.wait.eles_loaded('xpath://a[@class="button-wrapper button-wrapper--gray button-wrapper-loading-center operate-btn follow-sign popover__reference"]',timeout=30)
-                        sign_ele_new = page.ele('xpath://a[@class="button-wrapper button-wrapper--gray button-wrapper-loading-center operate-btn follow-sign popover__reference"]')
-                        if sign_ele_new:
-                            sign_ele_new.click()
-                            time.sleep(1)  # 等待签到动作完成
-                            sign_ele_new.click()
-                            time.sleep(1)  # 等待签到动作完成
-                            page.refresh()
-                            page._wait_loaded(15)
-                            level, exp = get_level_exp(page)
-                            msg = f"{name}吧：成功！等级：{level}，经验：{exp}"
-                            print(msg)
-                            notice += msg + '\n\n'
-                            print("-------------------------------------------------")
+                        sign_btn_ele_new = page.ele('xpath://div[contains(@class, "button-wrapper") and @aria-describedby]/div[contains(@class, "center") and normalize-space(text())="签到"]')                    
+                        if sign_btn_ele_new is not None:
+                            page.wait.eles_loaded('xpath://div[contains(@class, "button-wrapper") and @aria-describedby]/div[contains(@class, "center") and normalize-space(text())="签到"]', timeout=30)
+                            sign_ele_new = page.ele('xpath://div[contains(@class, "button-wrapper") and @aria-describedby]/div[contains(@class, "center") and normalize-space(text())="签到"]')
+                            if sign_ele_new:
+                                sign_ele_new.click()
+                                time.sleep(1)  # 等待签到动作完成
+                                sign_ele_new.click()
+                                time.sleep(1)  # 等待签到动作完成
+                                page.refresh()
+                                page._wait_loaded(15)
+                                level, exp = get_level_exp(page)
+                                msg = f"{name}吧：成功！等级：{level}，经验：{exp}"
+                                print(msg)
+                                notice += msg + '\n\n'
+                                print("-------------------------------------------------")
                         else:
                             msg = f"错误！{name}吧：新版本贴吧界面找不到签到按钮，可能页面结构变了"
                             print(msg)
