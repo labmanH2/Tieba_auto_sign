@@ -59,16 +59,13 @@ if __name__ == "__main__":
     print("程序开始运行")
     # 通知信息
     notice = ''
-    # 配置浏览器，适配GitHub Linux无头环境（修复add_argument→set_argument）
+    # 配置浏览器，适配GitHub Linux无头环境（删除了不兼容的set_experimental_option）
     co = ChromiumOptions()
     co.headless()
-    # 替换所有add_argument为set_argument，兼容DrissionPage新版本
-    co.set_argument('--no-sandbox')  # Linux环境必须，解决权限问题
-    co.set_argument('--disable-dev-shm-usage')  # 解决Linux内存不足
-    co.set_argument('--disable-blink-features=AutomationControlled')  # 反反爬，隐藏无头标识
-    co.set_argument('--start-maximized')  # 强制窗口最大化，避免元素因窗口过小被隐藏
-    co.set_experimental_option('excludeSwitches', ['enable-automation'])  # 反反爬
-    co.set_experimental_option('useAutomationExtension', False)  # 反反爬
+    co.set_argument('--no-sandbox')
+    co.set_argument('--disable-dev-shm-usage')
+    co.set_argument('--disable-blink-features=AutomationControlled')
+    co.set_argument('--start-maximized')
 
     # 设置浏览器路径
     chromium_path = shutil.which("chromium-browser")
@@ -76,7 +73,7 @@ if __name__ == "__main__":
         co.set_browser_path(chromium_path)
     page = ChromiumPage(co)
 
-    # 反反爬：隐藏webdriver标识
+    # 反反爬：隐藏webdriver标识（保留这个，DrissionPage 支持）
     page.run_cdp('Page.addScriptToEvaluateOnNewDocument', source='''
         Object.defineProperty(navigator, 'webdriver', {
             get: () => undefined
