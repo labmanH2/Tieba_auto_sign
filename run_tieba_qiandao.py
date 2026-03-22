@@ -15,26 +15,37 @@ def read_cookie():
 
 def get_level_exp(page):
     """获取等级和经验，如果找不到返回'未知'"""
+    level = "未知"
+    exp = "未知"
     try:
-        # 定位两个等级元素（不会同时存在）
-        level_ele = page.ele('xpath://*[@id="pagelet_aside/pagelet/my_tieba"]//div/div[1]/div[3]/div[1]/a/div')
-        level_ele_new = page.ele('xpath://div[contains(@class, "forum-suffix")]/svg[contains(@class, "level-icon")]/use')
-        
-        # 核心：取存在的那个元素，都不存在则为None
-        exist_level_ele = level_ele or level_ele_new
-    
-        # 提取等级文本（适配新旧版格式）
-        if exist_level_ele == level_ele:
-            # 旧版：直接取文本
-            level = level_ele.text.strip() if level_ele.text else "未知"
-        elif exist_level_ele == level_ele_new:
-            # 新版：提取属性中的等级数字
-            href_val = level_ele_new.attr("xlink:href")
-            level = href_val.replace("#level", "") if href_val else "未知"
-        else:
-            # 都不存在
-            level = "未知"
-    except:
+        # ========== 图一：CSS 选择器方案（你验证成功的版本） ==========
+        level_svg = page.ele('css:svg.level-icon')
+        if level_svg:
+            use_ele = level_svg.ele('css:use')
+            if use_ele:
+                href = use_ele.attr('xlink:href')
+                level = href.replace('#level_', '') if href else '未知'
+        # ========== 图二：原新旧版 XPath 方案（兜底） ==========
+        if level == "未知":
+            # 定位两个等级元素（不会同时存在）
+            level_ele = page.ele('xpath://*[@id="pagelet_aside/pagelet/my_tieba"]//div/div[1]/div[3]/div[1]/a/div')
+            level_ele_new = page.ele('xpath://div[contains(@class, "forum-suffix")]/svg[contains(@class, "level-icon")]/use')
+            
+            # 核心：取存在的那个元素，都不存在则为None
+            exist_level_ele = level_ele or level_ele_new
+            
+            # 提取等级文本（适配新旧版格式）
+            if exist_level_ele == level_ele:
+                # 旧版：直接取文本
+                level = level_ele.text.strip() if level_ele.text else "未知"
+            elif exist_level_ele == level_ele_new:
+                # 新版：提取属性中的等级数字
+                href_val = level_ele_new.attr("xlink:href")
+                level = href_val.replace("#level_", "") if href_val else "未知"
+            else:
+                # 都不存在
+                level = "未知"
+    except Exception as e:
         # 任何错误都兜底为未知
         level = "未知"
 
