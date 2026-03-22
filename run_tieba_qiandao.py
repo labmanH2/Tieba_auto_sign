@@ -139,10 +139,10 @@ if __name__ == "__main__":
                         notice += msg + '\n\n'
                         print("-------------------------------------------------")
                         sign_success = True
-                    else:
-                        msg = f"错误！{name}吧：旧版本贴吧页面找不到签到按钮，尝试新版签到..."
-                        print(msg)
-                        notice += msg + '\n\n'
+                    #else:
+                        #msg = f"错误！{name}吧：旧版本贴吧页面找不到签到按钮，尝试新版签到..."
+                        #print(msg)
+                        #notice += msg + '\n\n'
                 
                 # 旧版按钮不存在 或 旧版签到失败，执行新版签到逻辑
                 if not sign_success:
