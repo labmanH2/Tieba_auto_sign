@@ -70,7 +70,6 @@ if __name__ == "__main__":
     # 通知信息
     notice = ''
 
-
     co = ChromiumOptions().headless()
     chromium_path = shutil.which("chromium-browser")
     if chromium_path:
@@ -83,7 +82,6 @@ if __name__ == "__main__":
     page.set.cookies(read_cookie())
     page.refresh()
     page._wait_loaded(15)
-
 
     over = False
     yeshu = 0
@@ -111,74 +109,92 @@ if __name__ == "__main__":
                 break
 
             page.get(tieba_url)
-            
 
             page.wait.eles_loaded('xpath://*[@id="signstar_wrapper"]/a/span[1]',timeout=30)
 
-
-            # 判断是否签到
+            # ========== 优化后的核心签到逻辑 ==========
+            # 统一判断签到状态（兼容新旧版）
+            is_signed = False
+            # 旧版签到状态
             is_sign_ele = page.ele('xpath://*[@id="signstar_wrapper"]/a/span[1]')
+            if is_sign_ele and is_sign_ele.text.startswith("连续"):
+                is_signed = True
+            # 新版签到状态
             is_sign_ele_new = page.ele('xpath://div[contains(@class, "center") and contains(text(), "连签")]')
-            is_sign = is_sign_ele.text if is_sign_ele else ""
-            is_sign_new = is_sign_ele_new.text if is_sign_ele_new else ""
-            if is_sign.startswith("连续") or "连签" in is_sign_new:
+            if is_sign_ele_new and "连签" in is_sign_ele_new.text:
+                is_signed = True
+
+            if is_signed:
+                # 已签到逻辑
                 level, exp = get_level_exp(page)
                 msg = f"{name}吧：已签到过！等级：{level}，经验：{exp}"
                 print(msg)
                 notice += msg + '\n\n'
                 print("-------------------------------------------------")
             else:
-                # ========== 核心修改部分 ==========
-                # 先找旧版签到按钮
-                sign_btn_ele = page.ele('xpath://div[@id="signstar_wrapper"]//a[contains(@class, "j_sign_tip") and @title="签到"]')
-                sign_success = False  # 标记是否签到成功
-                
-                if sign_btn_ele is not None:
-                    # 旧版签到逻辑
-                    page.wait.eles_loaded('xpath://a[@class="j_signbtn sign_btn_bright j_cansign"]',timeout=30)
-                    sign_ele = page.ele('xpath://a[@class="j_signbtn sign_btn_bright j_cansign"]')
-                    if sign_ele:
-                        sign_ele.click()
-                        time.sleep(1)  # 等待签到动作完成
-                        sign_ele.click()
-                        time.sleep(1)  # 等待签到动作完成
+                # 未签到，执行签到逻辑
+                sign_success = False
+                # 1. 尝试旧版签到
+                try:
+                    sign_btn_old = page.ele('xpath://a[@class="j_signbtn sign_btn_bright j_cansign"]', timeout=10)
+                    if sign_btn_old:
+                        # 确保按钮可点击
+                        page.wait.clickable(sign_btn_old, timeout=10)
+                        sign_btn_old.click()
+                        time.sleep(2)  # 延长等待时间，确保签到请求完成
+                        # 验证签到是否成功
                         page.refresh()
                         page._wait_loaded(15)
-                        level, exp = get_level_exp(page)
-                        msg = f"{name}吧：成功！等级：{level}，经验：{exp}"
-                        print(msg)
-                        notice += msg + '\n\n'
-                        print("-------------------------------------------------")
-                        sign_success = True
-                    #else:
-                        #msg = f"错误！{name}吧：旧版本贴吧页面找不到签到按钮，尝试新版签到..."
-                        #print(msg)
-                        #notice += msg + '\n\n'
-                
-                # 旧版按钮不存在 或 旧版签到失败，执行新版签到逻辑
+                        # 重新检查签到状态
+                        new_is_sign_ele = page.ele('xpath://*[@id="signstar_wrapper"]/a/span[1]')
+                        new_is_sign_ele_new = page.ele('xpath://div[contains(@class, "center") and contains(text(), "连签")]')
+                        if (new_is_sign_ele and new_is_sign_ele.text.startswith("连续")) or \
+                           (new_is_sign_ele_new and "连签" in new_is_sign_ele_new.text):
+                            level, exp = get_level_exp(page)
+                            msg = f"{name}吧：旧版签到成功！等级：{level}，经验：{exp}"
+                            sign_success = True
+                except Exception as e:
+                    msg = f"{name}吧：旧版签到尝试失败 - {str(e)}"
+                    print(msg)
+                    notice += msg + '\n\n'
+
+                # 2. 旧版失败，尝试新版签到
                 if not sign_success:
-                    sign_btn_ele_new = page.ele('xpath://div[contains(@class, "button-wrapper") and @aria-describedby]/div[contains(@class, "center") and normalize-space(text())="签到"]')                    
-                    if sign_btn_ele_new is not None:
-                        page.wait.eles_loaded('xpath://div[contains(@class, "button-wrapper") and @aria-describedby]/div[contains(@class, "center") and normalize-space(text())="签到"]', timeout=30)
-                        sign_ele_new = page.ele('xpath://div[contains(@class, "button-wrapper") and @aria-describedby]/div[contains(@class, "center") and normalize-space(text())="签到"]')
-                        if sign_ele_new:
-                            sign_ele_new.click()
-                            time.sleep(1)  # 等待签到动作完成
-                            sign_ele_new.click()
-                            time.sleep(1)  # 等待签到动作完成
+                    try:
+                        sign_btn_new = page.ele(
+                            'xpath://div[contains(@class, "button-wrapper") and @aria-describedby]/div[contains(@class, "center") and normalize-space(text())="签到"]',
+                            timeout=10
+                        )
+                        if sign_btn_new:
+                            page.wait.clickable(sign_btn_new, timeout=10)
+                            sign_btn_new.click()
+                            time.sleep(2)  # 延长等待时间，确保签到请求完成
+                            # 验证签到是否成功
                             page.refresh()
                             page._wait_loaded(15)
-                            level, exp = get_level_exp(page)
-                            msg = f"{name}吧：成功！等级：{level}，经验：{exp}"
-                            print(msg)
-                            notice += msg + '\n\n'
-                            print("-------------------------------------------------")
+                            new_is_sign_ele = page.ele('xpath://*[@id="signstar_wrapper"]/a/span[1]')
+                            new_is_sign_ele_new = page.ele('xpath://div[contains(@class, "center") and contains(text(), "连签")]')
+                            if (new_is_sign_ele and new_is_sign_ele.text.startswith("连续")) or \
+                               (new_is_sign_ele_new and "连签" in new_is_sign_ele_new.text):
+                                level, exp = get_level_exp(page)
+                                msg = f"{name}吧：新版签到成功！等级：{level}，经验：{exp}"
+                                sign_success = True
+                            else:
+                                msg = f"{name}吧：新版签到按钮点击后未检测到签到成功"
                         else:
-                            msg = f"错误！{name}吧：新版本贴吧界面找不到签到按钮，可能页面结构变了"
-                            print(msg)
-                            notice += msg + '\n\n'
-                            print("-------------------------------------------------")
-                # ========== 核心修改结束 ==========
+                            msg = f"{name}吧：未找到新版签到按钮"
+                    except Exception as e:
+                        msg = f"{name}吧：新版签到尝试失败 - {str(e)}"
+
+                # 3. 最终结果反馈
+                if sign_success:
+                    print(msg)
+                    notice += msg + '\n\n'
+                else:
+                    print(msg)
+                    notice += msg + '\n\n'
+                print("-------------------------------------------------")
+            # ========== 核心签到逻辑结束 ==========
 
             count += 1
             page.back()
