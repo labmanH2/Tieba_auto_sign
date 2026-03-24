@@ -93,35 +93,26 @@ if __name__ == "__main__":
 
         page._wait_loaded(15)
 
-        # ========== 修复1：贴吧列表循环 ==========
         for i in range(2, 22):
+            element = page.ele(
+                f'xpath://*[@id="like_pagelet"]/div[1]/div[1]/table/tbody/tr[{i}]/td[1]/a/@href'
+            )
             try:
-                # 等待列表加载完成
-                page.wait.eles_loaded('xpath://*[@id="like_pagelet"]/div[1]/div[1]/table/tbody/tr', timeout=15)
-                element = page.ele(
-                    f'xpath://*[@id="like_pagelet"]/div[1]/div[1]/table/tbody/tr[{i}]/td[1]/a/@href',
-                    timeout=5
-                )
-                if not element:
-                    # 元素为空，说明到列表末尾
-                    msg = f"全部爬取完成！本次总共签到 {count} 个吧..."
-                    print(msg)
-                    notice += msg + '\n\n'
-                    page.close()
-                    over = True
-                    break
-                # 正常读取贴吧信息
                 tieba_url = element.attr("href")
                 name = element.attr("title")
-            except Exception as e:
-                # 异常时跳过当前行，继续下一个
-                print(f"第{i}行贴吧读取异常：{str(e)}，跳过...")
-                continue
+            except:
+                msg = f"全部爬取完成！本次总共签到 {count} 个吧..."
+                print(msg)
+                notice += msg + '\n\n'
+                page.close()
+                over = True
+                break
 
             page.get(tieba_url)
 
             page.wait.eles_loaded('xpath://*[@id="signstar_wrapper"]/a/span[1]',timeout=30)
 
+            # ========== 优化后的核心签到逻辑 ==========
             # 统一判断签到状态（兼容新旧版）
             is_signed = False
             # 旧版签到状态
@@ -147,13 +138,14 @@ if __name__ == "__main__":
                 try:
                     sign_btn_old = page.ele('xpath://a[@class="j_signbtn sign_btn_bright j_cansign"]', timeout=10)
                     if sign_btn_old:
-                        # ========== 修复2：用元素.wait() 替代 page.wait.clickable() ==========
-                        sign_btn_old.wait(timeout=10)
+                        # 确保按钮可点击
+                        page.wait.clickable(sign_btn_old, timeout=10)
                         sign_btn_old.click()
-                        time.sleep(2)
-                        # 验证签到
+                        time.sleep(2)  # 延长等待时间，确保签到请求完成
+                        # 验证签到是否成功
                         page.refresh()
                         page._wait_loaded(15)
+                        # 重新检查签到状态
                         new_is_sign_ele = page.ele('xpath://*[@id="signstar_wrapper"]/a/span[1]')
                         new_is_sign_ele_new = page.ele('xpath://div[contains(@class, "center") and contains(text(), "连签")]')
                         if (new_is_sign_ele and new_is_sign_ele.text.startswith("连续")) or \
@@ -174,11 +166,10 @@ if __name__ == "__main__":
                             timeout=10
                         )
                         if sign_btn_new:
-                            # ========== 修复2：用元素.wait() 替代 page.wait.clickable() ==========
-                            sign_btn_new.wait(timeout=10)
+                            page.wait.clickable(sign_btn_new, timeout=10)
                             sign_btn_new.click()
-                            time.sleep(2)
-                            # 验证签到
+                            time.sleep(2)  # 延长等待时间，确保签到请求完成
+                            # 验证签到是否成功
                             page.refresh()
                             page._wait_loaded(15)
                             new_is_sign_ele = page.ele('xpath://*[@id="signstar_wrapper"]/a/span[1]')
