@@ -139,7 +139,7 @@ if __name__ == "__main__":
                     sign_btn_old = page.ele('xpath://a[@class="j_signbtn sign_btn_bright j_cansign"]', timeout=10)
                     if sign_btn_old:
                         # 确保按钮可点击
-                        sign_btn_old.wait(timeout=10)
+                        page.wait.clickable(sign_btn_old, timeout=10)
                         sign_btn_old.click()
                         time.sleep(2)  # 延长等待时间，确保签到请求完成
                         # 验证签到是否成功
@@ -166,7 +166,7 @@ if __name__ == "__main__":
                             timeout=10
                         )
                         if sign_btn_new:
-                            sign_btn_new.wait(timeout=10)
+                            page.wait.clickable(sign_btn_new, timeout=10)
                             sign_btn_new.click()
                             time.sleep(2)  # 延长等待时间，确保签到请求完成
                             # 验证签到是否成功
