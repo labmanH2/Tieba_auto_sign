@@ -4,7 +4,6 @@ import os
 import shutil
 import time
 import requests
-
 def read_cookie():
     """读取 cookie，优先从环境变量读取"""
     if "TIEBA_COOKIES" in os.environ:
@@ -12,7 +11,6 @@ def read_cookie():
     else:
         print("贴吧Cookie未配置！详细请参考教程！")
         return []
-
 def get_level_exp(page):
     """获取等级和经验，如果找不到返回'未知'"""
     level = "未知"
@@ -48,7 +46,6 @@ def get_level_exp(page):
     except Exception as e:
         # 任何错误都兜底为未知
         level = "未知"
-
     try:
         exp_old_ele = page.ele('xpath://*[@id="pagelet_aside/pagelet/my_tieba"]/div/div[1]/div[3]/div[2]/a/div[2]/span[1]')
         exp_new_ele = page.ele('xpath://div[contains(@class, "bar-info")]/div[contains(@class, "progress-text")]')
@@ -61,38 +58,28 @@ def get_level_exp(page):
             exp = "未知"
     except:
         exp = "未知"
-
     return level, exp
-
 if __name__ == "__main__":
     print("程序开始运行")
-
     # 通知信息
     notice = ''
-
     co = ChromiumOptions().headless()
     chromium_path = shutil.which("chromium-browser")
     if chromium_path:
         co.set_browser_path(chromium_path)
-
     page = ChromiumPage(co)
-
     url = "https://tieba.baidu.com/"
     page.get(url)
     page.set.cookies(read_cookie())
     page.refresh()
     page._wait_loaded(15)
-
     over = False
     yeshu = 0
     count = 0
-
     while not over:
         yeshu += 1
         page.get(f"https://tieba.baidu.com/i/i/forum?&pn={yeshu}")
-
         page._wait_loaded(15)
-
         for i in range(2, 22):
             element = page.ele(
                 f'xpath://*[@id="like_pagelet"]/div[1]/div[1]/table/tbody/tr[{i}]/td[1]/a/@href'
@@ -107,11 +94,8 @@ if __name__ == "__main__":
                 page.close()
                 over = True
                 break
-
             page.get(tieba_url)
-
             page.wait.eles_loaded('xpath://*[@id="signstar_wrapper"]/a/span[1]',timeout=30)
-
             # ========== 优化后的核心签到逻辑 ==========
             # 统一判断签到状态（兼容新旧版）
             is_signed = False
@@ -123,7 +107,6 @@ if __name__ == "__main__":
             is_sign_ele_new = page.ele('xpath://div[contains(@class, "center") and contains(text(), "连签")]')
             if is_sign_ele_new and "连签" in is_sign_ele_new.text:
                 is_signed = True
-
             if is_signed:
                 # 已签到逻辑
                 level, exp = get_level_exp(page)
@@ -138,8 +121,7 @@ if __name__ == "__main__":
                 try:
                     sign_btn_old = page.ele('xpath://a[@class="j_signbtn sign_btn_bright j_cansign"]', timeout=10)
                     if sign_btn_old:
-                        # 确保按钮可点击
-                        page.wait.clickable(sign_btn_old, timeout=10)
+                        # 移除报错的clickable，直接点击（DrissionPage的click自带等待可点击）
                         sign_btn_old.click()
                         time.sleep(2)  # 延长等待时间，确保签到请求完成
                         # 验证签到是否成功
@@ -157,7 +139,6 @@ if __name__ == "__main__":
                     msg = f"{name}吧：旧版签到尝试失败 - {str(e)}"
                     print(msg)
                     notice += msg + '\n\n'
-
                 # 2. 旧版失败，尝试新版签到
                 if not sign_success:
                     try:
@@ -166,7 +147,7 @@ if __name__ == "__main__":
                             timeout=10
                         )
                         if sign_btn_new:
-                            page.wait.clickable(sign_btn_new, timeout=10)
+                            # 移除报错的clickable，直接点击（DrissionPage的click自带等待可点击）
                             sign_btn_new.click()
                             time.sleep(2)  # 延长等待时间，确保签到请求完成
                             # 验证签到是否成功
@@ -185,7 +166,6 @@ if __name__ == "__main__":
                             msg = f"{name}吧：未找到新版签到按钮"
                     except Exception as e:
                         msg = f"{name}吧：新版签到尝试失败 - {str(e)}"
-
                 # 3. 最终结果反馈
                 if sign_success:
                     print(msg)
@@ -195,11 +175,9 @@ if __name__ == "__main__":
                     notice += msg + '\n\n'
                 print("-------------------------------------------------")
             # ========== 核心签到逻辑结束 ==========
-
             count += 1
             page.back()
             page._wait_loaded(10)
-
     if "SendKey" in os.environ:
         api = f'https://sc.ftqq.com/{os.environ["SendKey"]}.send'
         title = u"贴吧签到信息"
