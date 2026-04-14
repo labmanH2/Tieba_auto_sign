@@ -4,7 +4,6 @@ import os
 import shutil
 import time
 import requests
-
 def read_cookie():
     """读取 cookie，优先从环境变量读取"""
     if "TIEBA_COOKIES" in os.environ:
@@ -12,30 +11,6 @@ def read_cookie():
     else:
         print("贴吧Cookie未配置！详细请参考教程！")
         return []
-
-def check_login_status(page):
-    """校验登录状态，返回是否已登录"""
-    try:
-        # 方式1：检查是否有登录后的用户名元素（旧版）
-        username_ele = page.ele('xpath://*[@id="j_userinfo_head"]/a', timeout=5)
-        if username_ele and username_ele.attr('href'):
-            return True
-        
-        # 方式2：检查新版登录态元素
-        new_user_ele = page.ele('xpath://div[contains(@class, "user-name-wrap")]//a[contains(@href, "home")]', timeout=5)
-        if new_user_ele:
-            return True
-        
-        # 方式3：检查是否存在登录按钮（反向验证）
-        login_btn = page.ele('xpath://a[contains(@class, "login-btn") or text()="登录"]', timeout=3)
-        if login_btn:
-            return False
-        
-        return False
-    except Exception as e:
-        print(f"登录状态校验异常：{str(e)}")
-        return False
-
 def get_level_exp(page):
     """获取等级和经验，如果找不到返回'未知'"""
     level = "未知"
@@ -84,7 +59,6 @@ def get_level_exp(page):
     except:
         exp = "未知"
     return level, exp
-
 if __name__ == "__main__":
     print("程序开始运行")
     # 通知信息
@@ -99,37 +73,6 @@ if __name__ == "__main__":
     page.set.cookies(read_cookie())
     page.refresh()
     page._wait_loaded(15)
-
-    # ========== 新增：登录状态校验 ==========
-    print("正在校验登录状态...")
-    if not check_login_status(page):
-        error_msg = "登录状态校验失败！Cookie可能已过期或无效，请重新配置Cookie。"
-        print(error_msg)
-        notice += error_msg + '\n\n'
-        # 发送登录失败通知（如果配置了Server酱）
-        if "SendKey" in os.environ:
-            api = f'https://sc.ftqq.com/{os.environ["SendKey"]}.send'
-            title = u"贴吧签到失败 - 登录状态异常"
-            data = {
-                "text": title,
-                "desp": error_msg
-            }
-            try:
-                req = requests.post(api, data=data, timeout=60)
-                if req.status_code == 200:
-                    print("登录失败通知发送成功")
-                else:
-                    print(f"登录失败通知发送失败，状态码：{req.status_code}")
-            except Exception as e:
-                print(f"登录失败通知发送异常：{e}")
-        page.close()
-        exit(1)  # 退出程序
-    else:
-        success_msg = "登录状态校验成功！开始执行签到流程..."
-        print(success_msg)
-        notice += success_msg + '\n\n'
-    # ========== 登录状态校验结束 ==========
-
     over = False
     yeshu = 0
     count = 0
