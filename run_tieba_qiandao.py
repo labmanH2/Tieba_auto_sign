@@ -4,6 +4,7 @@ import os
 import shutil
 import time
 import requests
+
 def read_cookie():
     """读取 cookie，优先从环境变量读取"""
     if "TIEBA_COOKIES" in os.environ:
@@ -11,6 +12,7 @@ def read_cookie():
     else:
         print("贴吧Cookie未配置！详细请参考教程！")
         return []
+
 def get_level_exp(page):
     """获取等级和经验，如果找不到返回'未知'"""
     level = "未知"
@@ -59,6 +61,7 @@ def get_level_exp(page):
     except:
         exp = "未知"
     return level, exp
+
 if __name__ == "__main__":
     print("程序开始运行")
     # 通知信息
@@ -76,13 +79,17 @@ if __name__ == "__main__":
     over = False
     yeshu = 0
     count = 0
+    # 替换后的 while 循环部分
     while not over:
         yeshu += 1
         page.get(f"https://tieba.baidu.com/i/i/forum?&pn={yeshu}")
         page._wait_loaded(15)
         # 替换原来的 for i in range(...) 循环
         empty_count = 0
+        page_empty = False  # 标记当前页是否已空
         for i in range(2, 100):
+            if page_empty:
+                break
             try:
                 # 定位当前行的贴吧元素，设置超时
                 element = page.ele(
@@ -96,6 +103,7 @@ if __name__ == "__main__":
                     # 连续空10行，认为本页已经到底，结束本页循环
                     if empty_count >= 10:
                         print(f"📄 第{yeshu}页已读完，准备翻下一页")
+                        page_empty = True
                         break
                     continue
 
@@ -111,8 +119,11 @@ if __name__ == "__main__":
                 empty_count += 1
                 if empty_count >= 10:
                     print(f"📄 第{yeshu}页已读完，准备翻下一页")
+                    page_empty = True
                     break
                 continue
+            
+            # 访问贴吧页面进行签到操作
             page.get(tieba_url)
             page.wait.eles_loaded('xpath://*[@id="signstar_wrapper"]/a/span[1]',timeout=30)
             # ========== 优化后的核心签到逻辑 ==========
@@ -197,12 +208,22 @@ if __name__ == "__main__":
             count += 1
             page.back()
             page._wait_loaded(10)
+        
+        # 检查是否是最后一页（当前页无任何有效内容）
+        if empty_count >= 10 and count == 0:
+            print(f"📚 所有页面已读取完毕，共签到 {count} 个贴吧")
+            over = True
+        elif page_empty and yeshu > 100:  # 防止无限翻页，设置最大页数100
+            print(f"⚠️ 已翻至第{yeshu}页，达到最大页数限制，停止翻页")
+            over = True
+
+    # Server酱通知逻辑
     if "SendKey" in os.environ:
         api = f'https://sc.ftqq.com/{os.environ["SendKey"]}.send'
         title = u"贴吧签到信息"
         data = {
-        "text":title,
-        "desp":notice
+            "text": title,
+            "desp": notice
         }
         try:
             req = requests.post(api, data=data, timeout=60)
