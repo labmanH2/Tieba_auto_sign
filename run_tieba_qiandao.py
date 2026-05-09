@@ -80,7 +80,7 @@ if __name__ == "__main__":
         yeshu += 1
         page.get(f"https://tieba.baidu.com/i/i/forum?&pn={yeshu}")
         page._wait_loaded(15)
-        for i in range(2, 22):
+        for i in range(2, 100):
             element = page.ele(
                 f'xpath://*[@id="like_pagelet"]/div[1]/div[1]/table/tbody/tr[{i}]/td[1]/a/@href'
             )
