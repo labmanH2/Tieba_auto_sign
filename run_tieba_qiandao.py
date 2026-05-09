@@ -80,20 +80,39 @@ if __name__ == "__main__":
         yeshu += 1
         page.get(f"https://tieba.baidu.com/i/i/forum?&pn={yeshu}")
         page._wait_loaded(15)
+        
+        # 替换原来的 for i in range(...) 循环
+        empty_count = 0
         for i in range(2, 100):
-            element = page.ele(
-                f'xpath://*[@id="like_pagelet"]/div[1]/div[1]/table/tbody/tr[{i}]/td[1]/a/@href'
-            )
             try:
-                tieba_url = element.attr("href")
-                name = element.attr("title")
-            except:
-                msg = f"全部爬取完成！本次总共签到 {count} 个吧..."
-                print(msg)
-                notice += msg + '\n\n'
-                page.close()
-                over = True
-                break
+            # 定位当前行的贴吧元素，设置超时
+            element = page.ele(
+                f'xpath://*[@id="like_pagelet"]/div[1]/div[1]/table/tbody/tr[{i}]/td[1]/a',
+                timeout=1)
+            # 如果这一行是空的
+            if not element:
+                empty_count += 1
+                # 连续空10行，认为本页已经到底，结束本页循环
+                if empty_count >= 10:
+                    print(f"📄 第{yeshu}页已读完，准备翻下一页")
+                    break
+            continue
+
+            # 只要读到有效内容，清空空行计数器
+            empty_count = 0
+
+            # 正常读取贴吧链接和名字
+            tieba_url = element.attr("href")
+            name = element.attr("title")
+
+        except Exception as e:
+            # 出错也跳过，不结束程序
+            empty_count += 1
+            if empty_count >= 10:
+            print(f"📄 第{yeshu}页已读完，准备翻下一页")
+            break
+        continue
+                
             page.get(tieba_url)
             page.wait.eles_loaded('xpath://*[@id="signstar_wrapper"]/a/span[1]',timeout=30)
             # ========== 优化后的核心签到逻辑 ==========
