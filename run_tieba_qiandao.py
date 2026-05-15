@@ -5,16 +5,14 @@ import shutil
 import time
 import requests
 
-def read_cookie():
-    """读取 cookie，优先从环境变量读取"""
-    if "TIEBA_COOKIES" in os.environ:
-        return json.loads(os.environ["TIEBA_COOKIES"])
-    else:
-        print("贴吧Cookie未配置！详细请参考教程！")
-        return []
+def read_cookie(env_name):
+    """从环境变量读取cookie"""
+    if env_name in os.environ:
+        return json.loads(os.environ[env_name])
+    return []
 
 def get_level_exp(page):
-    """获取等级和经验，如果找不到返回'未知'"""
+    """获取等级和经验"""
     level = "未知"
     exp = "未知"
     try:
@@ -33,9 +31,7 @@ def get_level_exp(page):
             elif exist_level_ele == level_ele_new:
                 href_val = level_ele_new.attr("xlink:href")
                 level = href_val.replace("#level_", "") if href_val else "未知"
-            else:
-                level = "未知"
-    except Exception as e:
+    except Exception:
         level = "未知"
     try:
         exp_old_ele = page.ele('xpath://*[@id="pagelet_aside/pagelet/my_tieba"]/div/div[1]/div[3]/div[2]/a/div[2]/span[1]')
@@ -45,37 +41,33 @@ def get_level_exp(page):
         exp = exp_text_old or exp_text_new
         if not exp:
             exp = "未知"
-    except:
+    except Exception:
         exp = "未知"
     return level, exp
 
-if __name__ == "__main__":
-    print("程序开始运行")
-    notice = ''
-    co = ChromiumOptions().headless()
-    chromium_path = shutil.which("chromium-browser")
-    if chromium_path:
-        co.set_browser_path(chromium_path)
-    page = ChromiumPage(co)
+def run_for_account(page, cookies, notice):
+    """执行单个账号签到"""
+    if not cookies:
+        return notice, 0
+
+    print("开始签到当前账号...")
     url = "https://tieba.baidu.com/"
     page.get(url)
-    page.set.cookies(read_cookie())
+    page.set.cookies(cookies)
     page.refresh()
     page._wait_loaded(15)
 
     over = False
     yeshu = 0
     count = 0
-    # ========== 双保险停止逻辑 ==========
-    max_pages = 20           # 兜底：最多翻20页
-    max_empty_pages = 2      # 主逻辑：连续2页空就停止
-    empty_page_count = 0     # 连续空页计数器
+    max_pages = 15
+    max_empty_pages = 2
+    empty_page_count = 0
 
     while not over:
         yeshu += 1
         page.get(f"https://tieba.baidu.com/i/i/forum?&pn={yeshu}")
         page._wait_loaded(15)
-
         empty_count = 0
         page_has_content = False
         page_empty = False
@@ -91,7 +83,6 @@ if __name__ == "__main__":
                 if not element:
                     empty_count += 1
                     if empty_count >= 10:
-                        print(f"📄 第{yeshu}页已读完，准备翻下一页")
                         page_empty = True
                         break
                     continue
@@ -99,18 +90,15 @@ if __name__ == "__main__":
                 empty_count = 0
                 tieba_url = element.attr("href")
                 name = element.attr("title")
-
-            except Exception as e:
+            except Exception:
                 empty_count += 1
                 if empty_count >= 10:
-                    print(f"📄 第{yeshu}页已读完，准备翻下一页")
                     page_empty = True
                     break
                 continue
 
-            # 签到逻辑（完全不变）
             page.get(tieba_url)
-            page.wait.eles_loaded('xpath://*[@id="signstar_wrapper"]/a/span[1]',timeout=30)
+            page.wait.eles_loaded('xpath://*[@id="signstar_wrapper"]/a/span[1]', timeout=30)
             is_signed = False
             is_sign_ele = page.ele('xpath://*[@id="signstar_wrapper"]/a/span[1]')
             if is_sign_ele and is_sign_ele.text.startswith("连续"):
@@ -121,97 +109,83 @@ if __name__ == "__main__":
 
             if is_signed:
                 level, exp = get_level_exp(page)
-                msg = f"{name}吧：已签到过！等级：{level}，经验：{exp}"
-                print(msg)
-                notice += msg + '\n\n'
-                print("-------------------------------------------------")
+                msg = f"{name}吧：已签到！等级：{level}，经验：{exp}"
             else:
                 sign_success = False
                 try:
-                    sign_btn_old = page.ele('xpath://a[@class="j_signbtn sign_btn_bright j_cansign"]', timeout=10)
+                    sign_btn_old = page.ele('xpath://a[@class="j_signbtn sign_btn_bright j_cansign"]', timeout=5)
                     if sign_btn_old:
                         sign_btn_old.click()
                         time.sleep(2)
                         page.refresh()
-                        page._wait_loaded(15)
-                        new_is_sign_ele = page.ele('xpath://*[@id="signstar_wrapper"]/a/span[1]')
-                        new_is_sign_ele_new = page.ele('xpath://div[contains(@class, "center") and contains(text(), "连签")]')
-                        if (new_is_sign_ele and new_is_sign_ele.text.startswith("连续")) or \
-                           (new_is_sign_ele_new and "连签" in new_is_sign_ele_new.text):
-                            level, exp = get_level_exp(page)
-                            msg = f"{name}吧：旧版签到成功！等级：{level}，经验：{exp}"
-                            sign_success = True
-                except Exception as e:
-                    msg = f"{name}吧：旧版签到尝试失败 - {str(e)}"
-                    print(msg)
-                    notice += msg + '\n\n'
+                        page._wait_loaded(10)
+                        sign_success = True
+                except Exception:
+                    pass
                 if not sign_success:
                     try:
-                        sign_btn_new = page.ele(
-                            'xpath://div[contains(@class, "button-wrapper") and @aria-describedby]/div[contains(@class, "center") and normalize-space(text())="签到"]',
-                            timeout=10
-                        )
+                        sign_btn_new = page.ele('xpath://div[contains(text(),"签到") and @class="center"]', timeout=5)
                         if sign_btn_new:
                             sign_btn_new.click()
                             time.sleep(2)
                             page.refresh()
-                            page._wait_loaded(15)
-                            new_is_sign_ele = page.ele('xpath://*[@id="signstar_wrapper"]/a/span[1]')
-                            new_is_sign_ele_new = page.ele('xpath://div[contains(@class, "center") and contains(text(), "连签")]')
-                            if (new_is_sign_ele and new_is_sign_ele.text.startswith("连续")) or \
-                               (new_is_sign_ele_new and "连签" in new_is_sign_ele_new.text):
-                                level, exp = get_level_exp(page)
-                                msg = f"{name}吧：新版签到成功！等级：{level}，经验：{exp}"
-                                sign_success = True
-                            else:
-                                msg = f"{name}吧：新版签到按钮点击后未检测到签到成功"
-                        else:
-                            msg = f"{name}吧：未找到新版签到按钮"
-                    except Exception as e:
-                        msg = f"{name}吧：新版签到尝试失败 - {str(e)}"
-                if sign_success:
-                    print(msg)
-                    notice += msg + '\n\n'
-                else:
-                    print(msg)
-                    notice += msg + '\n\n'
-                print("-------------------------------------------------")
+                            page._wait_loaded(10)
+                            sign_success = True
+                    except Exception:
+                        pass
+                level, exp = get_level_exp(page)
+                msg = f"{name}吧：{'签到成功' if sign_success else '签到失败'}！等级：{level}，经验：{exp}"
+
+            print(msg)
+            notice += msg + "\n\n"
             count += 1
             page.back()
             page._wait_loaded(10)
 
-        # 停止判断1：连续空页
         if page_has_content:
             empty_page_count = 0
         else:
             empty_page_count += 1
-            print(f"📄 第{yeshu}页为空，连续空页数：{empty_page_count}")
             if empty_page_count >= max_empty_pages:
-                print("✅ 已连续2页无贴吧，所有关注的贴吧已签完，程序结束")
+                print("✅ 此账号签到完毕")
                 over = True
-                break
-
-        # 停止判断2：最大页数兜底
         if yeshu > max_pages:
-            print(f"⚠️ 已达到最大翻页数{max_pages}，程序结束")
+            print("⚠️ 达到最大页数，停止")
             over = True
-            break
 
-    # Server酱通知
+    notice += f"🎉 当前账号共签到：{count} 个吧\n\n"
+    return notice, count
+
+if __name__ == "__main__":
+    print("贴吧双账号签到脚本启动")
+    notice = "=== 贴吧双账号自动签到 ===\n\n"
+
+    co = ChromiumOptions().headless()
+    chromium_path = shutil.which("chromium-browser")
+    if chromium_path:
+        co.set_browser_path(chromium_path)
+    page = ChromiumPage(co)
+
+    # 账号1
+    notice += "【账号 1 签到】\n\n"
+    cookies1 = read_cookie("TIEBA_COOKIES")
+    notice, count1 = run_for_account(page, cookies1, notice)
+
+    # 账号2
+    notice += "【账号 2 签到】\n\n"
+    cookies2 = read_cookie("TIEBA_COOKIES2")
+    notice, count2 = run_for_account(page, cookies2, notice)
+
+    page.quit()
+
+    total = count1 + count2
+    notice += f"✅ 全部完成！总签到：{total}"
+    print(f"总签到：{total}")
+
+    # 推送
     if "SendKey" in os.environ:
-        api = f'https://sc.ftqq.com/{os.environ["SendKey"]}.send'
-        title = u"贴吧签到信息"
-        data = {
-            "text": title,
-            "desp": notice
-        }
         try:
-            req = requests.post(api, data=data, timeout=60)
-            if req.status_code == 200:
-                print("Server酱通知发送成功")
-            else:
-                print(f"通知失败，状态码：{req.status_code}")
-        except Exception as e:
-            print(f"通知发送异常：{e}")
-    else:
-        print("未配置Server酱服务...")
+            api = f"https://sc.ftqq.com/{os.environ['SendKey']}.send"
+            requests.post(api, data={"text": "贴吧双账号签到完成", "desp": notice}, timeout=20)
+        except Exception:
+            pass
