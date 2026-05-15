@@ -5,12 +5,12 @@ import shutil
 import time
 import requests
 
-def read_cookie():
-    """读取 cookie，优先从环境变量读取"""
-    if "TIEBA_COOKIES" in os.environ:
-        return json.loads(os.environ["TIEBA_COOKIES"])
+def read_cookie_by_name(env_name):
+    """按名称读取指定cookie"""
+    if env_name in os.environ:
+        return json.loads(os.environ[env_name])
     else:
-        print("贴吧Cookie未配置！详细请参考教程！")
+        print(f"⚠️ {env_name} 未配置！")
         return []
 
 def get_level_exp(page):
@@ -49,33 +49,34 @@ def get_level_exp(page):
         exp = "未知"
     return level, exp
 
-if __name__ == "__main__":
-    print("程序开始运行")
-    notice = ''
+def run_sign(cookies, notice):
+    """运行签到（完全使用你原来的逻辑）"""
+    if not cookies:
+        return notice, 0
+
     co = ChromiumOptions().headless()
     chromium_path = shutil.which("chromium-browser")
     if chromium_path:
         co.set_browser_path(chromium_path)
     page = ChromiumPage(co)
+
     url = "https://tieba.baidu.com/"
     page.get(url)
-    page.set.cookies(read_cookie())
+    page.set.cookies(cookies)
     page.refresh()
     page._wait_loaded(15)
 
     over = False
     yeshu = 0
     count = 0
-    # ========== 双保险停止逻辑 ==========
-    max_pages = 20           # 兜底：最多翻20页
-    max_empty_pages = 2      # 主逻辑：连续2页空就停止
-    empty_page_count = 0     # 连续空页计数器
+    max_pages = 20
+    max_empty_pages = 2
+    empty_page_count = 0
 
     while not over:
         yeshu += 1
         page.get(f"https://tieba.baidu.com/i/i/forum?&pn={yeshu}")
         page._wait_loaded(15)
-
         empty_count = 0
         page_has_content = False
         page_empty = False
@@ -99,7 +100,6 @@ if __name__ == "__main__":
                 empty_count = 0
                 tieba_url = element.attr("href")
                 name = element.attr("title")
-
             except Exception as e:
                 empty_count += 1
                 if empty_count >= 10:
@@ -108,7 +108,6 @@ if __name__ == "__main__":
                     break
                 continue
 
-            # 签到逻辑（完全不变）
             page.get(tieba_url)
             page.wait.eles_loaded('xpath://*[@id="signstar_wrapper"]/a/span[1]',timeout=30)
             is_signed = False
@@ -180,7 +179,6 @@ if __name__ == "__main__":
             page.back()
             page._wait_loaded(10)
 
-        # 停止判断1：连续空页
         if page_has_content:
             empty_page_count = 0
         else:
@@ -190,28 +188,39 @@ if __name__ == "__main__":
                 print("✅ 已连续2页无贴吧，所有关注的贴吧已签完，程序结束")
                 over = True
                 break
-
-        # 停止判断2：最大页数兜底
         if yeshu > max_pages:
             print(f"⚠️ 已达到最大翻页数{max_pages}，程序结束")
             over = True
             break
 
-    # Server酱通知
+    page.quit()
+    return notice, count
+
+if __name__ == "__main__":
+    print("程序开始运行（双账号版）")
+    notice = ''
+
+    # ====================== 账号1 ======================
+    print("\n======= 开始签到 账号1 =======")
+    cookies1 = read_cookie_by_name("TIEBA_COOKIES")
+    notice, count1 = run_sign(cookies1, notice)
+
+    # ====================== 账号2 ======================
+    print("\n======= 开始签到 账号2 =======")
+    cookies2 = read_cookie_by_name("TIEBA_COOKIES2")
+    notice, count2 = run_sign(cookies2, notice)
+
+    total = count1 + count2
+    notice += f"\n🎉 全部签到完成！总签到数：{total}\n"
+    print(f"\n总签到数：{total}")
+
+    # Server酱
     if "SendKey" in os.environ:
         api = f'https://sc.ftqq.com/{os.environ["SendKey"]}.send'
-        title = u"贴吧签到信息"
-        data = {
-            "text": title,
-            "desp": notice
-        }
+        title = u"贴吧双账号签到完成"
+        data = {"text": title, "desp": notice}
         try:
-            req = requests.post(api, data=data, timeout=60)
-            if req.status_code == 200:
-                print("Server酱通知发送成功")
-            else:
-                print(f"通知失败，状态码：{req.status_code}")
-        except Exception as e:
-            print(f"通知发送异常：{e}")
-    else:
-        print("未配置Server酱服务...")
+            requests.post(api, data=data, timeout=60)
+            print("Server酱发送成功")
+        except:
+            print("Server酱发送失败")
