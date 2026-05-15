@@ -34,6 +34,7 @@ jobs:
       - name: Run Tieba Qiandao
         env:
           TIEBA_COOKIES: ${{ secrets.TIEBA_COOKIES }}
+          TIEBA_COOKIES2: ${{ secrets.TIEBA_COOKIES2 }}
           SendKey: ${{ secrets.SendKey }}
         run: |
           python run_tieba_qiandao.py
