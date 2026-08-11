@@ -4,7 +4,6 @@ import os
 import shutil
 import time
 import requests
-
 def read_cookie_by_name(env_name):
     """按名称读取指定cookie"""
     if env_name in os.environ:
@@ -12,7 +11,6 @@ def read_cookie_by_name(env_name):
     else:
         print(f"⚠️ {env_name} 未配置！")
         return []
-
 def get_level_exp(page):
     """获取等级和经验，如果找不到返回'未知'"""
     level = "未知"
@@ -48,31 +46,26 @@ def get_level_exp(page):
     except:
         exp = "未知"
     return level, exp
-
 def run_sign(cookies, notice):
     """运行签到（完全使用你原来的逻辑）"""
     if not cookies:
         return notice, 0
-
     co = ChromiumOptions().headless()
     chromium_path = shutil.which("chromium-browser")
     if chromium_path:
         co.set_browser_path(chromium_path)
     page = ChromiumPage(co)
-
     url = "https://tieba.baidu.com/"
     page.get(url)
     page.set.cookies(cookies)
     page.refresh()
     page._wait_loaded(15)
-
     over = False
     yeshu = 0
     count = 0
     max_pages = 20
     max_empty_pages = 2
     empty_page_count = 0
-
     while not over:
         yeshu += 1
         page.get(f"https://tieba.baidu.com/i/i/forum?&pn={yeshu}")
@@ -80,7 +73,6 @@ def run_sign(cookies, notice):
         empty_count = 0
         page_has_content = False
         page_empty = False
-
         for i in range(2, 100):
             if page_empty:
                 break
@@ -107,7 +99,6 @@ def run_sign(cookies, notice):
                     page_empty = True
                     break
                 continue
-
             page.get(tieba_url)
             page.wait.eles_loaded('xpath://*[@id="signstar_wrapper"]/a/span[1]',timeout=30)
             is_signed = False
@@ -117,7 +108,6 @@ def run_sign(cookies, notice):
             is_sign_ele_new = page.ele('xpath://div[contains(@class, "center") and contains(text(), "连签")]')
             if is_sign_ele_new and "连签" in is_sign_ele_new.text:
                 is_signed = True
-
             if is_signed:
                 level, exp = get_level_exp(page)
                 msg = f"{name}吧：已签到过！等级：{level}，经验：{exp}"
@@ -178,7 +168,6 @@ def run_sign(cookies, notice):
             count += 1
             page.back()
             page._wait_loaded(10)
-
         if page_has_content:
             empty_page_count = 0
         else:
@@ -192,32 +181,31 @@ def run_sign(cookies, notice):
             print(f"⚠️ 已达到最大翻页数{max_pages}，程序结束")
             over = True
             break
-
     page.quit()
     return notice, count
-
 if __name__ == "__main__":
-    print("程序开始运行（双账号版）")
+    print("程序开始运行（三账号版）")
     notice = ''
-
     # ====================== 账号1 ======================
     print("\n======= 开始签到 账号1 =======")
     cookies1 = read_cookie_by_name("TIEBA_COOKIES")
     notice, count1 = run_sign(cookies1, notice)
-
     # ====================== 账号2 ======================
     print("\n======= 开始签到 账号2 =======")
     cookies2 = read_cookie_by_name("TIEBA_COOKIES2")
     notice, count2 = run_sign(cookies2, notice)
-
-    total = count1 + count2
+    # ====================== 账号3 新增 ======================
+    print("\n======= 开始签到 账号3 =======")
+    cookies3 = read_cookie_by_name("TIEBA_COOKIES3")
+    notice, count3 = run_sign(cookies3, notice)
+    
+    total = count1 + count2 + count3
     notice += f"\n🎉 全部签到完成！总签到数：{total}\n"
     print(f"\n总签到数：{total}")
-
     # Server酱
     if "SendKey" in os.environ:
         api = f'https://sc.ftqq.com/{os.environ["SendKey"]}.send'
-        title = u"贴吧双账号签到完成"
+        title = u"贴吧三账号签到完成"
         data = {"text": title, "desp": notice}
         try:
             requests.post(api, data=data, timeout=60)
